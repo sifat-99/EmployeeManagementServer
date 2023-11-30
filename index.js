@@ -8,7 +8,18 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const port = process.env.PORT || 3000;
 
 // middleware
-app.use(cors());
+app.use(cors(
+    {
+      origin: [
+        // 'http://localhost:',
+        'https://event-management-44c7e.web.app',
+        'https://event-management-44c7e.firebaseapp.com'
+  
+      
+      ],
+      credentials: true,
+    }
+  ));
 app.use(express.json());
 
 // console.log(`process.env.DB_USER: ${process.env.DB_USER}`);
@@ -45,6 +56,9 @@ async function run() {
     const paymentCollection = client
       .db("EmployeeManagement")
       .collection("payments");
+    const workSheetCollection = client
+      .db("EmployeeManagement")
+      .collection("Worksheet");
 
 
 
@@ -145,6 +159,19 @@ app.post('/jwt', async (req, res) => {
         }
     );
 
+    app.post('/workSheet', async (req, res) => {
+        const workSheet = req.body;
+        const result = await workSheetCollection.insertOne(workSheet);
+        res.send(result);
+    }
+    )
+    app.get('/workSheet', async (req, res) => {
+        const cursor = workSheetCollection.find({});
+        const result = await cursor.toArray();
+        res.send(result);
+    }
+    )
+
 
 
     app.get("/employees", async (req, res) => {
@@ -156,10 +183,12 @@ app.post('/jwt', async (req, res) => {
     app.get("/employees/:email", async (req, res) => {
       const email = req.params.email;
       console.log(email);
-      const query = { email };
+      const query = { email:email };
       const employee = await employeeCollection.findOne(query);
       res.send(employee);
     });
+
+    // Homes Extra Apis
 
     app.get("/BannerImages", async (req, res) => {
       const cursor = imageCollection.find({});
