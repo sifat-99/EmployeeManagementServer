@@ -1,6 +1,7 @@
 const express = require("express");
 const app = express();
 const cors = require("cors");
+const jwt = require('jsonwebtoken');
 require("dotenv").config();
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
@@ -45,6 +46,51 @@ async function run() {
       .db("EmployeeManagement")
       .collection("payments");
 
+
+
+// jwt related api
+app.post('/jwt', async (req, res) => {
+    const user = req.body;
+    const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
+    res.send({ token });
+  })
+
+  // middlewares 
+  const verifyToken = (req, res, next) => {
+    console.log('inside verify token', req.headers.authorization);
+    if (!req.headers.authorization) {
+      return res.status(401).send({ message: 'unauthorized access' });
+    }
+    const token = req.headers.authorization.split(' ')[1];
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+      if (err) {
+        return res.status(401).send({ message: 'unauthorized access' })
+      }
+      req.decoded = decoded;
+      next();
+    })
+  }
+
+  // use verify admin after verifyToken
+  const verifyAdmin = async (req, res, next) => {
+    const email = req.decoded.email;
+    const query = { email: email };
+    const user = await employeeCollection.findOne(query);
+    const isAdmin = user?.role === 'admin';
+    if (!isAdmin) {
+      return res.status(403).send({ message: 'forbidden access' });
+    }
+    next();
+  }
+
+
+
+
+
+
+
+    //   Employee related API
+
     app.post("/employees", async (req, res) => {
       const newEmployee = req.body;
 
@@ -57,6 +103,49 @@ async function run() {
       console.log("Got new employee", req.body);
       res.send(result);
     });
+
+    app.put("/employees/:uid", async (req, res) => {
+        const uid = req?.params.uid;
+
+        console.log(uid)
+        const updatedEmployee = req.body;
+        const filter = { uid: uid };
+        console.log(filter)
+        const options = { upsert: true };
+        const updateDoc = {
+            $set: {
+                verificationStatus: updatedEmployee.verificationStatus,
+                
+            },
+        };
+        const result = await employeeCollection.updateOne(
+            filter,
+            updateDoc,
+            options
+        );
+        res.send(result);
+        }
+    );
+    app.put("/employees/updateRole/:email", async (req, res) => {
+        const email = req?.params.email;
+        const updatedEmployee = req.body;
+        const filter = { email:email };
+        const options = { upsert: true };
+        const updateDoc = {
+            $set: {
+                role: updatedEmployee.role,
+            },
+        };
+        const result = await employeeCollection.updateOne(
+            filter,
+            updateDoc,
+            options
+        );
+        res.send(result);
+        }
+    );
+
+
 
     app.get("/employees", async (req, res) => {
       const cursor = employeeCollection.find({});
@@ -88,10 +177,11 @@ async function run() {
       res.send(employees);
 
     });
+
+
+
+
     //   Payment Intent
-
- 
-
     app.post("/create-payment-intent", async (req, res) => {
       const { salary } = req.body;
       console.log(salary,'salary')
@@ -118,6 +208,14 @@ async function run() {
         
         })
 
+        app.get('/payments', async (req, res) => {
+            const cursor = paymentCollection.find({});
+            const result = await cursor.toArray();
+            console.log(result)
+            res.send(result);
+
+        })
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
@@ -137,16 +235,3 @@ app.get("/", (req, res) => {
 app.listen(port, () => {
   console.log(`Employee Management System is running ${port}`);
 });
-
-/**
- * --------------------------------
- *      NAMING CONVENTION
- * --------------------------------
- * app.get('/users')
- * app.get('/users/:id')
- * app.post('/users')
- * app.put('/users/:id')
- * app.patch('/users/:id')
- * app.delete('/users/:id')
- *
- */
