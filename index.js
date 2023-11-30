@@ -2,6 +2,7 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 require("dotenv").config();
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 const port = process.env.PORT || 3000;
 
@@ -28,8 +29,21 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
 
-    const employeeCollection = client.db("EmployeeManagement").collection("Employees");
-    const imageCollection = client.db("EmployeeManagement").collection("BannerImages");
+    const employeeCollection = client
+      .db("EmployeeManagement")
+      .collection("Employees");
+    const imageCollection = client
+      .db("EmployeeManagement")
+      .collection("BannerImages");
+    const serviceCollection = client
+      .db("EmployeeManagement")
+      .collection("services");
+    const testimonialCollection = client
+      .db("EmployeeManagement")
+      .collection("testimonials");
+    const paymentCollection = client
+      .db("EmployeeManagement")
+      .collection("payments");
 
     app.post("/employees", async (req, res) => {
       const newEmployee = req.body;
@@ -49,21 +63,60 @@ async function run() {
       const employees = await cursor.toArray();
       res.send(employees);
     });
-    
-    app.get("/employees/:email", async (req, res) => {
-        const email = req.params.email;
-        // console.log(email)
-        const query = { email };
-        const employee = await employeeCollection.findOne(query);
-        res.send(employee);
-        });
 
+    app.get("/employees/:email", async (req, res) => {
+      const email = req.params.email;
+      console.log(email);
+      const query = { email };
+      const employee = await employeeCollection.findOne(query);
+      res.send(employee);
+    });
 
     app.get("/BannerImages", async (req, res) => {
       const cursor = imageCollection.find({});
       const employees = await cursor.toArray();
       res.send(employees);
     });
+    app.get("/services", async (req, res) => {
+      const cursor = serviceCollection.find({});
+      const employees = await cursor.toArray();
+      res.send(employees);
+    });
+    app.get("/testimonials", async (req, res) => {
+      const cursor = testimonialCollection.find({});
+      const employees = await cursor.toArray();
+      res.send(employees);
+
+    });
+    //   Payment Intent
+
+ 
+
+    app.post("/create-payment-intent", async (req, res) => {
+      const { salary } = req.body;
+      console.log(salary,'salary')
+      // Create a PaymentIntent with the order amount and currency
+      const amount = parseInt(salary * 100);
+
+      console.log(amount,'amount of client')
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount : amount,
+            currency: 'usd',
+            payment_method_types: ['card'],
+        });
+        res.send({
+            clientSecret: paymentIntent.client_secret,
+        });
+
+    });
+
+    app.post('/payments', async (req, res) => {
+            const payment = req.body;
+            const result = await paymentCollection.insertOne(payment);
+            res.send(result);
+
+        
+        })
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
