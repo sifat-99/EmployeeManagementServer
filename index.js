@@ -11,7 +11,7 @@ const port = process.env.PORT || 3000;
 app.use(cors(
     {
       origin: [
-        // 'http://localhost:',
+        // 'http://localhost:5173',
         'https://event-management-44c7e.web.app',
         'https://event-management-44c7e.firebaseapp.com'
   
@@ -59,6 +59,11 @@ async function run() {
     const workSheetCollection = client
       .db("EmployeeManagement")
       .collection("Worksheet");
+    // const employeeCollection = client
+    //   .db("EmployeeManagement")
+    //   .collection("users");
+
+    const takeCollection = client.db("EmployeeManagement").collection("payments");
 
 
 
@@ -117,18 +122,31 @@ app.post('/jwt', async (req, res) => {
       console.log("Got new employee", req.body);
       res.send(result);
     });
+    app.post("/users", async (req, res) => {
+      const newUser = req.body;
 
-    app.put("/employees/:uid", async (req, res) => {
+      const query = { email: newUser.email };
+      const existingUser = await employeeCollection.findOne(query);
+      if (existingUser) {
+        return res.send({ message: "user already exists", insertedId: null });
+      }
+      const result = await employeeCollection.insertOne(newUser);
+      console.log("Got new user", req.body);
+      res.send(result);
+    });
+
+    app.put("/users/:uid", async (req, res) => {
         const uid = req?.params.uid;
 
         console.log(uid)
-        const updatedEmployee = req.body;
+        const updateUser = req.body;
         const filter = { uid: uid };
         console.log(filter)
         const options = { upsert: true };
         const updateDoc = {
             $set: {
-                verificationStatus: updatedEmployee.verificationStatus,
+                verificationStatus: updateUser.verificationStatus,
+                role: updateUser.role,
                 
             },
         };
@@ -140,7 +158,7 @@ app.post('/jwt', async (req, res) => {
         res.send(result);
         }
     );
-    app.put("/employees/updateRole/:email", async (req, res) => {
+    app.put("/user/updateRole/:email", async (req, res) => {
         const email = req?.params.email;
         const updatedEmployee = req.body;
         const filter = { email:email };
@@ -159,6 +177,17 @@ app.post('/jwt', async (req, res) => {
         }
     );
 
+ app.delete("/user/delete/:email", async (req, res) => {
+    const email = req.params.email;
+    const query = { email: email };
+    const result = await employeeCollection.deleteOne(query);
+    res.send(result);
+  }
+  );
+
+
+
+
     app.post('/workSheet', async (req, res) => {
         const workSheet = req.body;
         const result = await workSheetCollection.insertOne(workSheet);
@@ -174,12 +203,27 @@ app.post('/jwt', async (req, res) => {
 
 
 
-    app.get("/employees", async (req, res) => {
+    app.get("/users", async (req, res) => {
       const cursor = employeeCollection.find({});
       const employees = await cursor.toArray();
       res.send(employees);
     });
 
+    app.get("/user/:email", async (req, res) => {
+      const email = req.params.email;
+      console.log(email);
+      const query = { email:email };
+      const employee = await employeeCollection.findOne(query);
+      res.send(employee);
+    });
+    app.get("/user/role/:email", async (req, res) => {
+      const email = req.params.email;
+      // console.log(uid);
+      const query = { email:email };
+      const users = await employeeCollection.findOne(query);
+      console.log(users)
+      res.send(users);
+    });
     app.get("/employees/:email", async (req, res) => {
       const email = req.params.email;
       console.log(email);
@@ -204,6 +248,12 @@ app.post('/jwt', async (req, res) => {
       const cursor = testimonialCollection.find({});
       const employees = await cursor.toArray();
       res.send(employees);
+
+    });
+    app.get("/pay/get", async (req, res) => {
+      const cursor = takeCollection.find({});
+      const result = await cursor.toArray();
+      res.send(result);
 
     });
 
@@ -237,13 +287,7 @@ app.post('/jwt', async (req, res) => {
         
         })
 
-        app.get('/payments', async (req, res) => {
-            const cursor = paymentCollection.find({});
-            const result = await cursor.toArray();
-            console.log(result)
-            res.send(result);
-
-        })
+        
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
