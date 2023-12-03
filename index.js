@@ -11,9 +11,9 @@ const port = process.env.PORT || 3000;
 app.use(cors(
     {
       origin: [
-        // 'http://localhost:5173',
-        'https://event-management-44c7e.web.app',
-        'https://event-management-44c7e.firebaseapp.com'
+        'http://localhost:5173',
+        // 'https://event-management-44c7e.web.app',
+        // 'https://event-management-44c7e.firebaseapp.com'
   
       
       ],
@@ -184,6 +184,17 @@ app.post('/jwt', async (req, res) => {
     res.send(result);
   }
   );
+
+
+  app.get("/user/admincheck/:email", async (req, res) => {
+    const email = req.params.email;
+    console.log(email);
+    const query = { email:email };
+    const employee = await employeeCollection.findOne(query);
+    res.send(employee);
+  }
+  );
+
 
 
 
